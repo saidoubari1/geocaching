@@ -1,0 +1,29 @@
+# Node modules (generated)
+node_modules/
+
+# Environment variables (sensitive)
+.env
+
+# Log files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# VS Code settings (optional, personal)
+.vscode/
+
+# Mac/Linux swap or temp files
+*.swp
+*.swo
+
+# Optional build artifacts
+dist/
+build/
+
+# Local MongoDB data (if you store it in the project)
+data/db/
