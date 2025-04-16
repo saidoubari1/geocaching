@@ -7,9 +7,12 @@ module.exports = function (req, res, next) {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log("Decoded token:", decoded);
     req.user = decoded;
     next();
   } catch (err) {
     res.status(400).json({ message: 'Token invalide.' });
   }
 };
+
+

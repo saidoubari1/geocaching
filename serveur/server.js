@@ -18,5 +18,5 @@ connectDB().then(() => {
     const PORT = process.env.PORT || 5000;
     app.listen(PORT, () => console.log('Serveur lancé sur le port ${PORT}'));
 }).catch(err => {
-    console.log("Impossible de sec onnecter à MongoDB", err);
-});
+    console.log("Impossible de sec onnecter à MongoDB", err)
+})
