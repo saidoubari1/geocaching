@@ -1,29 +1,59 @@
-# Node modules (generated)
+# — Node & package managers
 node_modules/
-
-# Environment variables (sensitive)
-.env
-
-# Log files
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-*.log
+.pnpm-debug.log*
+.yarn/cache/
+.pnpm-store/
 
-# OS-specific
+# — Expo / React Native
+.expo/
+.expo-shared/
+*.expo-settings.json
+web-build/               # si vous avez fait expo build:web
+metro-cache/
+babel.config.js.cache
+
+# — Android
+android/.gradle/
+android/app/build/
+*.apk
+*.keystore
+
+# — iOS
+ios/Pods/
+ios/build/
+ios/*.xcworkspace
+ios/*.xcuserstate
+# (si vous avez un DerivedData local, l’ignorer aussi)
+
+# — Caches, logs & coverage
+.cache/
+coverage/
+.nyc_output/
+*.log
+.eslintcache
+
+# — TypeScript
+*.tsbuildinfo
+
+# — IDE & éditeurs
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.iml
+
+# — OS
 .DS_Store
 Thumbs.db
 
-# VS Code settings (optional, personal)
-.vscode/
+# — Fichiers d’env vars
+.env
+.env.*.local
+.local/
 
-# Mac/Linux swap or temp files
+# — Fichiers temporaires éditeur
 *.swp
 *.swo
-
-# Optional build artifacts
-dist/
-build/
-
-# Local MongoDB data (if you store it in the project)
-data/db/
