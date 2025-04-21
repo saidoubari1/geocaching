@@ -1,6 +1,7 @@
 // client/src/screens/RegisterScreen.js
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, StyleSheet, Alert } from 'react-native';
+import { API_URL } from '../services/api';
 
 export default function RegisterScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -8,17 +9,18 @@ export default function RegisterScreen({ navigation }) {
 
   const handleRegister = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/auth/register', {
+      const response = await fetch(`${API_URL}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
+      
       if (response.ok) {
         Alert.alert('Succès', 'Inscription réussie ! Veuillez vous connecter.');
         navigation.navigate('Login');
       } else {
         const error = await response.json();
-        Alert.alert('Erreur', error.message || 'Erreur lors de l’inscription');
+        Alert.alert('Erreur', error.message || 'Erreur lors de inscription');
       }
     } catch (error) {
       console.error(error);
@@ -44,7 +46,7 @@ export default function RegisterScreen({ navigation }) {
         secureTextEntry
         onChangeText={setPassword}
       />
-      <Button title="S’inscrire" onPress={handleRegister} />
+      <Button title="S'inscrire" onPress={handleRegister} />
       <Text style={styles.link} onPress={() => navigation.navigate('Login')}>
         Vous avez déjà un compte ? Connectez-vous
       </Text>

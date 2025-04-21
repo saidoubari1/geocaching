@@ -16,7 +16,11 @@ connectDB().then(() => {
     app.use('/api/geocache', require('./routes/geocache'));
 
     const PORT = process.env.PORT || 5000;
-    app.listen(PORT, () => console.log('Serveur lancé sur le port ${PORT}'));
+    // Écouter sur toutes les interfaces réseau avec '0.0.0.0'
+    app.listen(PORT, '0.0.0.0', () => {
+        console.log(`Serveur lancé sur le port ${PORT}`);
+        console.log(`Adresse du serveur: http://localhost:${PORT}`);
+    });
 }).catch(err => {
-    console.log("Impossible de sec onnecter à MongoDB", err)
-})
+    console.log("Impossible de se connecter à MongoDB", err);
+});

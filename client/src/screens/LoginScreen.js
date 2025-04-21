@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, StyleSheet, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_BASE } from '../services/api';
+import { API_URL } from '../services/api';
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -10,23 +10,38 @@ export default function LoginScreen({ navigation }) {
 
   const handleLogin = async () => {
     try {
-      const response = await fetch('${API_BASE}/api/auth/login', {
+      console.log(`Attempting to login at: ${API_URL}/api/auth/login`);
+      
+      const response = await fetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
+      
+      console.log('Response status:', response.status);
+      console.log('👉 API_URL =', API_URL);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('Login successful, token received');
         // Save JWT token in AsyncStorage
         await AsyncStorage.setItem('token', data.token);
         navigation.navigate('Home');
       } else {
-        const error = await response.json();
-        Alert.alert('Erreur', error.message || 'Identifiants invalides');
+        try {
+          const error = await response.json();
+          Alert.alert('Erreur', error.message || 'Identifiants invalides');
+        } catch (e) {
+          // If the response is not JSON
+          Alert.alert('Erreur', `Erreur de serveur (${response.status})`);
+        }
       }
     } catch (error) {
-      console.error(error);
-      Alert.alert('Erreur', 'Une erreur est survenue.');
+      console.error('Login error:', error);
+      Alert.alert(
+        'Erreur de connexion', 
+        `Impossible de se connecter au serveur. Vérifiez que le serveur est en cours d'exécution à l'adresse ${API_URL} et que votre appareil peut s'y connecter.`
+      );
     }
   };
 

@@ -156,6 +156,27 @@ router.post('/:id/comment', MiddleWareAuth, async (req, res) => {
     }
 });
 
+// ---------------------------------------------------------
+// RETRIEVE a specific geocache
+// Endpoint: GET /api/geocache/:id
+// This endpoint retrieves a specific geocache by its ID.
+// ---------------------------------------------------------
+router.get('/:id', MiddleWareAuth, async (req, res) => {
+    const geocacheId = req.params.id;
+    
+    try {
+      const db = await connectDB();
+      const geocache = await db.collection('geocaches').findOne({ _id: new ObjectId(geocacheId) });
+      
+      if (!geocache) {
+        return res.status(404).json({ message: 'Géocache non trouvée' });
+      }
+      
+      res.json(geocache);
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
+  });
 
 
 module.exports = router;
