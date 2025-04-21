@@ -1,18 +1,23 @@
+// serveur/middleware/MiddleWareAuth.js
 const jwt = require('jsonwebtoken');
 
-module.exports = function (req, res, next) {
-  const token = req.header('Authorization')?.split(" ")[1];
-
-  if (!token) return res.status(401).json({ message: 'Accès refusé. Token manquant.' });
-
+const MiddleWareAuth = (req, res, next) => {
+  // Récupérer le token dans le header Authorization
+  const token = req.header('Authorization')?.replace('Bearer ', '');
+  
+  // Si pas de token, refuser l'accès
+  if (!token) {
+    return res.status(401).json({ message: 'Accès refusé - Token manquant' });
+  }
+  
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log("Decoded token:", decoded);
-    req.user = decoded;
+    // Vérifier le token
+    const verified = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = verified;
     next();
-  } catch (err) {
-    res.status(400).json({ message: 'Token invalide.' });
+  } catch (error) {
+    res.status(401).json({ message: 'Token invalide ou expiré' });
   }
 };
 
-
+module.exports = MiddleWareAuth;

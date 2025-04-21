@@ -1,36 +1,53 @@
 // client/src/screens/RegisterScreen.js
-import React, { useState } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, Alert } from 'react-native';
-import { API_URL } from '../services/api';
+import React, { useState, useContext } from 'react';
+import { View, Text, TextInput, Button, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { AuthContext } from '../context/AuthContext';
 
 export default function RegisterScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const { register, isLoading } = useContext(AuthContext);
 
   const handleRegister = async () => {
-    try {
-      const response = await fetch(`${API_URL}/api/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-      
-      if (response.ok) {
-        Alert.alert('Succès', 'Inscription réussie ! Veuillez vous connecter.');
-        navigation.navigate('Login');
-      } else {
-        const error = await response.json();
-        Alert.alert('Erreur', error.message || 'Erreur lors de inscription');
-      }
-    } catch (error) {
-      console.error(error);
-      Alert.alert('Erreur', 'Une erreur est survenue.');
+    if (!email.trim() || !password.trim() || !confirmPassword.trim()) {
+      Alert.alert('Erreur', 'Veuillez remplir tous les champs');
+      return;
+    }
+    
+    if (password !== confirmPassword) {
+      Alert.alert('Erreur', 'Les mots de passe ne correspondent pas');
+      return;
+    }
+    
+    const result = await register(email, password);
+    
+    if (result.success) {
+      Alert.alert(
+        'Succès', 
+        'Compte créé avec succès ! Veuillez vous connecter.',
+        [
+          { text: 'OK', onPress: () => navigation.navigate('Login') }
+        ]
+      );
+    } else {
+      Alert.alert('Erreur d\'inscription', result.message || 'Une erreur est survenue');
     }
   };
 
+  if (isLoading) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <ActivityIndicator size="large" color="#4CAF50" />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Inscription</Text>
+      <Text style={styles.title}>Application Geocaching</Text>
+      <Text style={styles.subtitle}>Créez un compte pour commencer</Text>
+      
       <TextInput
         style={styles.input}
         placeholder="Email"
@@ -39,6 +56,7 @@ export default function RegisterScreen({ navigation }) {
         keyboardType="email-address"
         onChangeText={setEmail}
       />
+      
       <TextInput
         style={styles.input}
         placeholder="Mot de passe"
@@ -46,9 +64,25 @@ export default function RegisterScreen({ navigation }) {
         secureTextEntry
         onChangeText={setPassword}
       />
-      <Button title="S'inscrire" onPress={handleRegister} />
+      
+      <TextInput
+        style={styles.input}
+        placeholder="Confirmer le mot de passe"
+        value={confirmPassword}
+        secureTextEntry
+        onChangeText={setConfirmPassword}
+      />
+      
+      <View style={styles.buttonContainer}>
+        <Button 
+          title="S'inscrire" 
+          onPress={handleRegister}
+          color="#4CAF50" 
+        />
+      </View>
+      
       <Text style={styles.link} onPress={() => navigation.navigate('Login')}>
-        Vous avez déjà un compte ? Connectez-vous
+        Déjà un compte ? Connectez-vous
       </Text>
     </View>
   );
@@ -57,24 +91,45 @@ export default function RegisterScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    padding: 20,
+    backgroundColor: '#f5f5f5',
+  },
+  centered: {
     justifyContent: 'center',
-    padding: 20
+    alignItems: 'center',
   },
   title: {
     fontSize: 24,
-    marginBottom: 20,
-    textAlign: 'center'
+    fontWeight: 'bold',
+    marginBottom: 10,
+    textAlign: 'center',
+    color: '#4CAF50',
+    marginTop: 80,
+  },
+  subtitle: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 40,
+    color: '#666',
   },
   input: {
+    width: '100%',
+    height: 50,
     borderWidth: 1,
-    borderColor: '#ccc',
-    padding: 10,
+    borderColor: '#ddd',
+    borderRadius: 8,
     marginBottom: 15,
-    borderRadius: 5
+    paddingHorizontal: 10,
+    backgroundColor: 'white',
+  },
+  buttonContainer: {
+    marginTop: 10,
+    marginBottom: 20,
   },
   link: {
     marginTop: 20,
-    color: 'blue',
-    textAlign: 'center'
+    color: '#4CAF50',
+    textAlign: 'center',
+    fontSize: 16,
   }
 });
