@@ -46,7 +46,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // Connexion MongoDB
 connectDB().then(() => {
     // Routes
-    app.use('/api/auth', require('./routes/auth'));
+    app.use('/auth', require('./routes/auth'));
     app.use('/api/geocache', require('./routes/geocache'));
     app.use('/api/users', require('./routes/users'));
 
@@ -76,6 +76,11 @@ connectDB().then(() => {
     console.log("Impossible de se connecter à MongoDB", err);
 });
 
+// app.use(cors({
+//     origin: '*', // En développement, vous pouvez autoriser toutes les origines
+//     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+//     allowedHeaders: ['Content-Type', 'Authorization']
+//   }));
 
 
 // {

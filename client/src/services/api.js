@@ -3,7 +3,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Utiliser l'adresse IP que vous voyez dans votre terminal: exp://172.25.102.158:8081
-export const API_URL = 'http://172.25.102.158:5000';
+export const API_URL = 'http://10.248.214.70:5000';
 
 // Create an axios instance with authorization header
 const api = axios.create({

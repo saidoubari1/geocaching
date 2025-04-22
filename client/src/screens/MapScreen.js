@@ -88,15 +88,23 @@ export default function MapScreen({ navigation }) {
 
   const loadNearbyGeocaches = async (location) => {
     try {
+      console.log("Tentative de chargement des geocaches à proximité", location);
+      
       // Essayer d'abord de récupérer les geocaches à proximité
       const response = await getNearbyGeocaches(location.latitude, location.longitude, 5);
+      console.log("Réponse de l'API getNearbyGeocaches:", response);
       
       if (response.success) {
+        console.log("Nombre de geocaches trouvées:", response.data.length);
         setGeocaches(response.data);
       } else {
+        console.log("Échec de l'API getNearbyGeocaches, essai avec getAllGeocaches");
         // Si l'API de proximité n'est pas disponible, charger toutes les geocaches
         const allGeocachesResponse = await getAllGeocaches();
+        console.log("Réponse de l'API getAllGeocaches:", allGeocachesResponse);
+        
         if (allGeocachesResponse.success) {
+          console.log("Nombre total de geocaches:", allGeocachesResponse.data.length);
           setGeocaches(allGeocachesResponse.data);
         } else {
           Alert.alert('Erreur', 'Impossible de charger les geocaches');
