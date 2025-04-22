@@ -25,6 +25,7 @@ export default function MapScreen({ navigation }) {
   const [isLoading, setIsLoading] = useState(true);
   const [location, setLocation] = useState(null);
   const [geocaches, setGeocaches] = useState([]);
+  const [showHint, setShowHint] = useState(false);
   
   // États pour le modal de commentaire
   const [commentModalVisible, setCommentModalVisible] = useState(false);
@@ -50,8 +51,8 @@ export default function MapScreen({ navigation }) {
         };
         setLocation(userLocation);
         
-        // Charger les geocaches à proximité
-        await loadNearbyGeocaches(userLocation);
+        // Charger toutes les geocaches
+        await loadAllGeocaches();
       } else {
         // Utiliser une position par défaut (ENSEIRB-MATMECA à Talence)
         const defaultLocation = {
@@ -60,8 +61,8 @@ export default function MapScreen({ navigation }) {
         };
         setLocation(defaultLocation);
         
-        // Charger les geocaches à proximité avec la position par défaut
-        await loadNearbyGeocaches(defaultLocation);
+        // Charger toutes les geocaches
+        await loadAllGeocaches();
         
         Alert.alert(
           'Permission refusée',
@@ -80,35 +81,23 @@ export default function MapScreen({ navigation }) {
       setLocation(defaultLocation);
       
       // Charger les geocaches avec la position par défaut
-      await loadNearbyGeocaches(defaultLocation);
+      await loadAllGeocaches();
     } finally {
       setIsLoading(false);
     }
   };
 
-  const loadNearbyGeocaches = async (location) => {
+  const loadAllGeocaches = async () => {
     try {
-      console.log("Tentative de chargement des geocaches à proximité", location);
+      console.log("Chargement de toutes les geocaches");
       
-      // Essayer d'abord de récupérer les geocaches à proximité
-      const response = await getNearbyGeocaches(location.latitude, location.longitude, 5);
-      console.log("Réponse de l'API getNearbyGeocaches:", response);
+      const response = await getAllGeocaches();
       
       if (response.success) {
         console.log("Nombre de geocaches trouvées:", response.data.length);
         setGeocaches(response.data);
       } else {
-        console.log("Échec de l'API getNearbyGeocaches, essai avec getAllGeocaches");
-        // Si l'API de proximité n'est pas disponible, charger toutes les geocaches
-        const allGeocachesResponse = await getAllGeocaches();
-        console.log("Réponse de l'API getAllGeocaches:", allGeocachesResponse);
-        
-        if (allGeocachesResponse.success) {
-          console.log("Nombre total de geocaches:", allGeocachesResponse.data.length);
-          setGeocaches(allGeocachesResponse.data);
-        } else {
-          Alert.alert('Erreur', 'Impossible de charger les geocaches');
-        }
+        Alert.alert('Erreur', 'Impossible de charger les geocaches');
       }
     } catch (error) {
       console.error('Error loading geocaches:', error);
@@ -148,7 +137,7 @@ export default function MapScreen({ navigation }) {
                     const response = await deleteGeocache(data.geocacheId);
                     if (response.success) {
                       // Recharger les geocaches après la suppression
-                      await loadNearbyGeocaches(location);
+                      await loadAllGeocaches();
                       Alert.alert('Succès', 'Geocache supprimée avec succès');
                     } else {
                       Alert.alert('Erreur', response.message || 'Impossible de supprimer la geocache');
@@ -195,7 +184,7 @@ export default function MapScreen({ navigation }) {
         Alert.alert('Succès', 'Geocache marquée comme trouvée !');
         setCommentModalVisible(false);
         // Recharger les geocaches pour mettre à jour l'interface
-        await loadNearbyGeocaches(location);
+        await loadAllGeocaches();
       } else {
         Alert.alert('Erreur', response.message || 'Impossible de marquer la geocache comme trouvée');
       }
@@ -207,10 +196,93 @@ export default function MapScreen({ navigation }) {
     }
   };
 
+  // Fonction pour calculer la distance entre deux points (formule de Haversine)
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371; // Rayon de la Terre en km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2); 
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+    const distance = R * c; // Distance en km
+    return distance;
+  };
+
+  // Niveaux de zoom nécessaires pour voir les géocaches en fonction de leur difficulté
+  const getMinimumZoomForDifficulty = (difficulty) => {
+    // Plus le niveau est élevé, plus le zoom requis est important
+    switch (parseInt(difficulty) || 3) {
+      case 1: return 8; // Difficulté 1: visible à partir d'un zoom faible
+      case 2: return 10; // Difficulté 2: nécessite un peu plus de zoom
+      case 3: return 12; // Difficulté 3: zoom moyen
+      case 4: return 14; // Difficulté 4: zoom assez précis
+      case 5: return 16; // Difficulté 5: zoom très précis
+      default: return 13; // Par défaut: zoom moyen
+    }
+  };
+
   // Générer le HTML pour la carte Leaflet
   const generateLeafletMapHtml = () => {
     const userId = userData?.id || userData?._id || '';
+    const userLat = location?.latitude || 44.807380;
+    const userLng = location?.longitude || -0.605882;
     
+    // Préparer les données des geocaches avec les informations nécessaires
+    const processedGeocaches = geocaches.map(geocache => {
+      // Extraire les coordonnées de la geocache
+      let cacheLat, cacheLng;
+      if (Array.isArray(geocache.coordinates)) {
+        [cacheLat, cacheLng] = geocache.coordinates;
+      } else {
+        cacheLat = geocache.coordinates?.latitude || geocache.coordinates?.lat || 0;
+        cacheLng = geocache.coordinates?.longitude || geocache.coordinates?.lng || 0;
+      }
+      
+      // Vérifier si l'utilisateur a trouvé cette geocache
+      let isFound = false;
+      if (geocache.findings) {
+        isFound = geocache.findings.some(finding => {
+          if (typeof finding === 'string') return finding === userId;
+          return finding.user === userId;
+        });
+      } else if (geocache.foundBy) {
+        isFound = Array.isArray(geocache.foundBy) && geocache.foundBy.includes(userId);
+      }
+      
+      // Vérifier si l'utilisateur est le créateur
+      const isOwner = geocache.creator === userId;
+      
+      // Calculer la distance entre l'utilisateur et la geocache
+      const distance = calculateDistance(userLat, userLng, cacheLat, cacheLng);
+      
+      // Déterminer la difficulté
+      const difficultyLevel = parseInt(geocache.difficulty) || 3;
+      
+      // Déterminer le niveau de zoom minimum requis pour voir cette géocache
+      const minZoom = getMinimumZoomForDifficulty(difficultyLevel);
+      
+      // Générer les étoiles pour la difficulté
+      const difficultyStars = '★'.repeat(difficultyLevel) + '☆'.repeat(5 - difficultyLevel);
+      
+      return {
+        id: geocache._id,
+        lat: cacheLat,
+        lng: cacheLng,
+        difficulty: difficultyLevel,
+        description: geocache.description || '',
+        isOwner,
+        isFound,
+        minZoom,
+        difficultyStars,
+        distance, // Distance par rapport à l'utilisateur
+        creatorEmail: geocache.creatorEmail || 'un autre utilisateur',
+        comments: geocache.comments || []
+      };
+    });
+    
+    // Créer le HTML
     return `
       <!DOCTYPE html>
       <html>
@@ -261,23 +333,108 @@ export default function MapScreen({ navigation }) {
           .comment-author {
             font-weight: bold;
           }
+          .difficulty-info {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 5px;
+          }
+          .difficulty-star {
+            color: #FFC107;
+            font-size: 16px;
+            margin-left: 2px;
+          }
+          .distance-info {
+            font-size: 12px;
+            color: #2196F3;
+            margin-top: 5px;
+            font-style: italic;
+          }
+          .visibility-info {
+            font-size: 12px;
+            color: #F44336;
+            margin-top: 5px;
+            font-style: italic;
+          }
+          .legend {
+            padding: 10px;
+            background: white;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+            position: absolute;
+            bottom: 20px;
+            left: 10px;
+            z-index: 1000;
+          }
+          .legend-item {
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+          }
+          .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 10px;
+            margin-right: 8px;
+          }
+          .legend-text {
+            font-size: 12px;
+          }
+          .zoom-info {
+            padding: 10px;
+            background: white;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            font-size: 12px;
+          }
         </style>
       </head>
       <body>
         <div id="map"></div>
+        
+        <!-- Légende -->
+        <div class="legend">
+          <div class="legend-item">
+            <div class="legend-color" style="background-color: #4CAF50;"></div>
+            <div class="legend-text">Vos geocaches</div>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background-color: #FFC107;"></div>
+            <div class="legend-text">Geocaches trouvées</div>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background-color: #2196F3;"></div>
+            <div class="legend-text">Geocaches à trouver</div>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background-color: #f44336;"></div>
+            <div class="legend-text">Votre position</div>
+          </div>
+        </div>
+        
+        <!-- Info niveau de zoom -->
+        <div id="zoom-info" class="zoom-info">
+          Niveau de zoom actuel: <span id="current-zoom">-</span>
+        </div>
+        
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
         <script>
-          // Définir l'ID utilisateur en JS
-          const currentUserId = "${userId}";
-          console.log("ID utilisateur dans JS:", currentUserId);
-  
           // Initialiser la carte
-          const map = L.map('map').setView([${location?.latitude || 44.807380}, ${location?.longitude || -0.605882}], 15);
+          const map = L.map('map').setView([${userLat}, ${userLng}], 13);
           
           // Ajouter la couche de tuiles OpenStreetMap
           L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap contributors'
           }).addTo(map);
+          
+          // Stocker les marqueurs des geocaches
+          const geocacheMarkers = [];
           
           // Ajouter un marqueur pour la position de l'utilisateur
           const userIcon = L.icon({
@@ -288,13 +445,13 @@ export default function MapScreen({ navigation }) {
             popupAnchor: [1, -34]
           });
           
-          L.marker([${location?.latitude || 44.807380}, ${location?.longitude || -0.605882}], {icon: userIcon})
+          L.marker([${userLat}, ${userLng}], {icon: userIcon})
             .addTo(map)
-            .bindPopup('Votre position')
+            .bindPopup('<b>Votre position</b>')
             .openPopup();
           
-          // Icône pour les geocaches
-          const geocacheIcon = L.icon({
+          // Icône pour les geocaches de l'utilisateur
+          const userGeocacheIcon = L.icon({
             iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
             shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
             iconSize: [25, 41],
@@ -311,66 +468,98 @@ export default function MapScreen({ navigation }) {
             popupAnchor: [1, -34]
           });
           
-          // Ajouter les geocaches à la carte
-          ${geocaches.map(geocache => {
-            // Vérifier si les coordonnées existent et normaliser le format
-            const coordinates = Array.isArray(geocache.coordinates) 
-              ? geocache.coordinates 
-              : [geocache.coordinates?.latitude || geocache.coordinates?.lat || 0, 
-                 geocache.coordinates?.longitude || geocache.coordinates?.lng || 0];
+          // Icône pour les geocaches à trouver
+          const toFindGeocacheIcon = L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34]
+          });
+          
+          // Préparer les données des geocaches
+          const geocaches = ${JSON.stringify(processedGeocaches)};
+          
+          // Fonction pour ajouter ou supprimer des marqueurs en fonction du niveau de zoom
+          function updateVisibleGeocaches(zoomLevel) {
+            document.getElementById('current-zoom').textContent = zoomLevel;
             
-            // Vérifier si l'utilisateur a trouvé cette geocache
-            let isFound = false;
-            if (geocache.findings) {
-              isFound = geocache.findings.some(finding => {
-                if (typeof finding === 'string') return finding === userId;
-                return finding.user === userId;
-              });
-            } else if (geocache.foundBy) {
-              isFound = Array.isArray(geocache.foundBy) && geocache.foundBy.includes(userId);
-            }
-            
-            // Vérifier si l'utilisateur est le créateur
-            const isOwner = geocache.creator === userId;
-            
-            return `
-              L.marker([${coordinates[0]}, ${coordinates[1]}], {
-                icon: ${isFound ? 'foundGeocacheIcon' : 'geocacheIcon'}
-              })
-                .addTo(map)
-                .bindPopup(\`
+            geocaches.forEach((cache, index) => {
+              // Vérifier si le marqueur existe déjà
+              if (!geocacheMarkers[index]) {
+                // Créer un nouveau marqueur pour cette geocache
+                const marker = L.marker([cache.lat, cache.lng], {
+                  icon: cache.isOwner 
+                    ? userGeocacheIcon 
+                    : (cache.isFound ? foundGeocacheIcon : toFindGeocacheIcon)
+                });
+                
+                marker.bindPopup(\`
                   <div class="custom-popup">
                     <div class="cache-info">
-                      <h3>Geocache #${geocache._id.substring(0, 6)}</h3>
-                      <p>Difficulté: ${geocache.difficulty}/5</p>
-                      ${geocache.description ? `<p>${geocache.description}</p>` : ''}
-                      ${!isFound && !isOwner ? 
-                        `<button class="find-button" onclick="markGeocacheAsFound('${geocache._id}')">J'ai trouvé cette geocache!</button>` : 
-                        isOwner ? '<p><em>Vous avez créé cette geocache</em></p>' : 
-                        '<p><strong>Geocache trouvée ✓</strong></p>'
+                      <h3>Geocache #\${cache.id.substring(0, 6)}</h3>
+                      <div class="difficulty-info">
+                        <span>Difficulté: </span>
+                        <span class="difficulty-star">\${cache.difficultyStars}</span>
+                      </div>
+                      \${cache.description ? \`<p>\${cache.description}</p>\` : ''}
+                      \${
+                        cache.isOwner 
+                          ? '<p><em>Vous avez créé cette geocache</em></p>' 
+                          : cache.isFound 
+                            ? '<p><strong>Geocache trouvée ✓</strong></p>' 
+                            : \`<button class="find-button" onclick="markGeocacheAsFound('\${cache.id}')">J'ai trouvé cette geocache!</button>\`
                       }
+                      <p class="distance-info">Distance: \${cache.distance.toFixed(2)} km</p>
+                      <p class="visibility-info">Zoom minimum: \${cache.minZoom}</p>
                     </div>
                     
-                    ${isOwner ? `
-                    <button class="edit-button" onclick="editGeocache('${geocache._id}')">Modifier</button>
-                    <button class="delete-button" onclick="deleteGeocache('${geocache._id}')">Supprimer</button>
-                    ` : `<p><em>Créée par ${geocache.creatorEmail || 'un autre utilisateur'}</em></p>`}
+                    \${cache.isOwner ? \`
+                    <button class="edit-button" onclick="editGeocache('\${cache.id}')">Modifier</button>
+                    <button class="delete-button" onclick="deleteGeocache('\${cache.id}')">Supprimer</button>
+                    \` : \`<p><em>Créée par \${cache.creatorEmail}</em></p>\`}
                     
-                    ${geocache.comments && geocache.comments.length > 0 ? `
+                    \${cache.comments && cache.comments.length > 0 ? \`
                     <div class="cache-comments">
                       <h4>Commentaires:</h4>
-                      ${geocache.comments.map(comment => `
+                      \${cache.comments.map(comment => \`
                         <div class="comment">
-                          <span class="comment-author">${comment.commenter || 'Anonyme'}:</span>
-                          ${comment.comment || comment.text || ''}
+                          <span class="comment-author">\${comment.commenter || 'Anonyme'}:</span>
+                          \${comment.comment || comment.text || ''}
                         </div>
-                      `).join('')}
+                      \`).join('')}
                     </div>
-                    ` : ''}
+                    \` : ''}
                   </div>
                 \`);
-            `;
-          }).join('')}
+                
+                // Stocker le marqueur
+                geocacheMarkers[index] = marker;
+              }
+              
+              // Déterminer si la geocache doit être visible
+              const shouldBeVisible = (
+                cache.isOwner ||            // Toujours visible si c'est la vôtre
+                cache.isFound ||            // Toujours visible si déjà trouvée
+                zoomLevel >= cache.minZoom  // Visible si le zoom est suffisant
+              );
+              
+              // Ajouter ou supprimer le marqueur selon sa visibilité
+              if (shouldBeVisible && !map.hasLayer(geocacheMarkers[index])) {
+                geocacheMarkers[index].addTo(map);
+              } else if (!shouldBeVisible && map.hasLayer(geocacheMarkers[index])) {
+                map.removeLayer(geocacheMarkers[index]);
+              }
+            });
+          }
+          
+          // Mettre à jour les marqueurs au chargement initial
+          updateVisibleGeocaches(map.getZoom());
+          
+          // Mettre à jour les marqueurs quand le niveau de zoom change
+          map.on('zoomend', function() {
+            updateVisibleGeocaches(map.getZoom());
+          });
           
           // Fonction pour marquer une geocache comme trouvée
           function markGeocacheAsFound(geocacheId) {
@@ -396,14 +585,6 @@ export default function MapScreen({ navigation }) {
                 geocacheId: geocacheId
               }));
             }
-          }
-          
-          // Fonction pour voir les détails d'une geocache
-          function viewGeocacheDetails(geocacheId) {
-            window.ReactNativeWebView.postMessage(JSON.stringify({
-              type: 'VIEW_GEOCACHE',
-              geocacheId: geocacheId
-            }));
           }
           
           // Ajouter un listener de clic sur la carte pour créer une nouvelle geocache
@@ -453,7 +634,34 @@ export default function MapScreen({ navigation }) {
         >
           <Text style={styles.actionButtonText}>🔄</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.actionButton, styles.hintButton]}
+          onPress={() => setShowHint(!showHint)}
+        >
+          <Text style={styles.actionButtonText}>?</Text>
+        </TouchableOpacity>
       </View>
+      
+      {/* Infos sur les géocaches */}
+      {showHint && (
+        <View style={styles.infoContainer}>
+          <Text style={styles.infoText}>
+            Bienvenue dans l'application Geocaching !
+          </Text>
+          <Text style={styles.infoDetail}>• Les geocaches apparaissent en fonction du niveau de zoom :</Text>
+          <Text style={styles.infoDetail}>   - Difficulté 1: visible à partir du zoom 8</Text>
+          <Text style={styles.infoDetail}>   - Difficulté 2: visible à partir du zoom 10</Text>
+          <Text style={styles.infoDetail}>   - Difficulté 3: visible à partir du zoom 12</Text>
+          <Text style={styles.infoDetail}>   - Difficulté 4: visible à partir du zoom 14</Text>
+          <Text style={styles.infoDetail}>   - Difficulté 5: visible à partir du zoom 16</Text>
+          <Text style={styles.infoDetail}>• Vos geocaches et celles que vous avez trouvées sont toujours visibles</Text>
+          <Text style={styles.infoDetail}>• Zoomez pour découvrir plus de geocaches !</Text>
+          <TouchableOpacity onPress={() => setShowHint(false)}>
+            <Text style={styles.closeHint}>Fermer</Text>
+          </TouchableOpacity>
+        </View>
+      )}
       
       {/* Modal pour ajouter un commentaire lors du marquage comme trouvé */}
       <Modal
@@ -529,10 +737,44 @@ const styles = StyleSheet.create({
   refreshButton: {
     backgroundColor: '#2196F3',
   },
+  hintButton: {
+    backgroundColor: '#FFC107',
+  },
   actionButtonText: {
     fontSize: 24,
     color: 'white',
     fontWeight: 'bold',
+  },
+  infoContainer: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    right: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 8,
+    padding: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  infoText: {
+    fontWeight: 'bold',
+    marginBottom: 10,
+    fontSize: 16,
+    color: '#333',
+  },
+  infoDetail: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 5,
+  },
+  closeHint: {
+    color: '#2196F3',
+    fontWeight: 'bold',
+    marginTop: 10,
+    textAlign: 'center',
   },
   modalContainer: {
     flex: 1,

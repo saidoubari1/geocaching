@@ -1,4 +1,4 @@
-# — Node & package managers
+# === Dépendances ===
 node_modules/
 npm-debug.log*
 yarn-debug.log*
@@ -7,53 +7,63 @@ yarn-error.log*
 .yarn/cache/
 .pnpm-store/
 
-# — Expo / React Native
+# === Expo / React Native ===
 .expo/
 .expo-shared/
 *.expo-settings.json
-web-build/               # si vous avez fait expo build:web
+dist/
+web-build/
+expo-env.d.ts
+.metro-health-check*
 metro-cache/
 babel.config.js.cache
 
-# — Android
+# === Native ===
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# === Android ===
 android/.gradle/
 android/app/build/
 *.apk
 *.keystore
 
-# — iOS
+# === iOS ===
 ios/Pods/
 ios/build/
 ios/*.xcworkspace
 ios/*.xcuserstate
-# (si vous avez un DerivedData local, l’ignorer aussi)
 
-# — Caches, logs & coverage
-.cache/
-coverage/
-.nyc_output/
-*.log
-.eslintcache
-
-# — TypeScript
+# === TypeScript ===
 *.tsbuildinfo
 
-# — IDE & éditeurs
+# === IDE & éditeurs ===
 .vscode/
 .idea/
 *.suo
 *.ntvs*
 *.iml
 
-# — OS
+# === OS ===
 .DS_Store
 Thumbs.db
 
-# — Fichiers d’env vars
+# === Variables d'environnement ===
 .env
-.env.*.local
+.env*.local
 .local/
 
-# — Fichiers temporaires éditeur
+# === Fichiers temporaires éditeur ===
 *.swp
 *.swo
+
+# === Caches, logs & coverage ===
+.cache/
+coverage/
+.nyc_output/
+*.log
+.eslintcache
