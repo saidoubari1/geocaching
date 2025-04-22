@@ -7,7 +7,6 @@ Application mobile avec architecture client-serveur (frontend-backend), utilisan
 ```
 ├── client/                 # Application mobile React Native/Expo
 │   ├── assets/             # Images, polices et autres ressources statiques
-│   ├── my-new-project/     # Sous-projet
 │   ├── src/                # Code source principal du client
 │   │   ├── context/        # Contextes React (état global, thèmes, etc.)
 │   │   ├── navigation/     # Configuration de la navigation
