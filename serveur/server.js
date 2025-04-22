@@ -75,36 +75,3 @@ connectDB().then(() => {
 }).catch(err => {
     console.log("Impossible de se connecter à MongoDB", err);
 });
-
-// app.use(cors({
-//     origin: '*', // En développement, vous pouvez autoriser toutes les origines
-//     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-//     allowedHeaders: ['Content-Type', 'Authorization']
-//   }));
-
-
-// {
-//     "name": "serveur",
-//     "version": "1.0.0",
-//     "description": "",
-//     "main": "index.js",
-//     "scripts": {
-//       "start": "node serveur.js",
-//       "dev": "nodemon serveur.js",
-//       "test": "echo \"Error: no test specified\" && exit 1"
-//     },
-//     "keywords": [],
-//     "author": "",
-//     "license": "ISC",
-//     "dependencies": {
-//       "bcryptjs": "^3.0.2",
-//       "cors": "^2.8.5",
-//       "dotenv": "^16.4.7",
-//       "express": "^5.1.0",
-//       "jsonwebtoken": "^9.0.2",
-//       "mongodb": "^6.15.0"
-//     },
-//     "devDependencies": {
-//       "nodemon": "^3.1.9"
-//     }
-//   }
